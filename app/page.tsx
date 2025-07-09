@@ -22,9 +22,28 @@ import {
   Users,
 } from "lucide-react"
 import Link from "next/link"
+import { useRouter } from "next/navigation"
 
 export default function PowerPlantLanding() {
   const [location, setLocation] = useState("")
+  const router = useRouter()
+
+  const handleGetStarted = () => {
+    if (location.trim()) {
+      // Store location in localStorage for the onboarding process
+      localStorage.setItem('userLocation', location)
+      router.push('/onboarding')
+    } else {
+      // If no location, still go to onboarding but they'll be prompted there
+      router.push('/onboarding')
+    }
+  }
+
+  const handleCategoryExplore = (categoryName: string) => {
+    // Store the preferred category and navigate to onboarding
+    localStorage.setItem('preferredCategory', categoryName.toLowerCase())
+    router.push('/onboarding')
+  }
 
   const plantCategories = [
     {
@@ -95,10 +114,13 @@ export default function PowerPlantLanding() {
             <Link href="#how-it-works" className="text-gray-700 hover:text-powerplant-green transition-colors">
               How It Works
             </Link>
-            <Link href="#nurseries" className="text-gray-700 hover:text-powerplant-green transition-colors">
+            <Link href="/nurseries" className="text-gray-700 hover:text-powerplant-green transition-colors">
               Find Nurseries
             </Link>
-            <Button className="bg-gradient-to-r from-powerplant-green to-powerplant-green/80 hover:from-powerplant-green/90 hover:to-powerplant-green/70 text-white font-semibold">
+            <Button 
+              onClick={handleGetStarted}
+              className="bg-gradient-to-r from-powerplant-green to-powerplant-green/80 hover:from-powerplant-green/90 hover:to-powerplant-green/70 text-white font-semibold"
+            >
               Grow Your Power
             </Button>
           </nav>
@@ -133,10 +155,12 @@ export default function PowerPlantLanding() {
                   placeholder="Enter your zip code or city"
                   value={location}
                   onChange={(e) => setLocation(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && handleGetStarted()}
                   className="border-0 bg-transparent focus-visible:ring-0 text-lg"
                 />
                 <Button
                   size="lg"
+                  onClick={handleGetStarted}
                   className="bg-gradient-to-r from-powerplant-green to-energy-yellow hover:from-powerplant-green/90 hover:to-energy-yellow/90 text-white font-semibold rounded-full px-8 transform hover:scale-105 transition-all duration-200 shadow-lg hover:shadow-xl"
                 >
                   <Zap className="w-4 h-4 mr-2" />
@@ -234,6 +258,7 @@ export default function PowerPlantLanding() {
                   </div>
                   <Button
                     variant="outline"
+                    onClick={() => handleCategoryExplore(category.name)}
                     className="w-full border-powerplant-green text-powerplant-green hover:bg-powerplant-green hover:text-white transition-colors bg-transparent"
                   >
                     Explore {category.name}
@@ -272,7 +297,11 @@ export default function PowerPlantLanding() {
               ))}
               <span className="ml-2 text-lg">4.9/5 from 10,000+ reviews</span>
             </div>
-            <Button size="lg" className="bg-white text-powerplant-green hover:bg-gray-100 font-semibold px-8">
+            <Button 
+              size="lg" 
+              onClick={handleGetStarted}
+              className="bg-white text-powerplant-green hover:bg-gray-100 font-semibold px-8"
+            >
               <Zap className="w-4 h-4 mr-2" />
               Grow Your Power Today
             </Button>
