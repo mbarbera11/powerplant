@@ -31,10 +31,12 @@ export default function PowerPlantLanding() {
   const handleGetStarted = () => {
     if (location.trim()) {
       // Store location in localStorage for the onboarding process
-      localStorage.setItem('userLocation', location)
+      console.log('Saving location to localStorage:', location.trim()) // Debug log
+      localStorage.setItem('userLocation', location.trim())
       router.push('/onboarding')
     } else {
       // If no location, still go to onboarding but they'll be prompted there
+      console.log('No location entered, going to onboarding normally') // Debug log
       router.push('/onboarding')
     }
   }

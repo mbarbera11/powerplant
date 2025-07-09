@@ -90,19 +90,47 @@ export default function OnboardingPage() {
     const savedLocation = localStorage.getItem('userLocation')
     const savedCategory = localStorage.getItem('preferredCategory')
     
-    if (savedLocation) {
-      // Parse location and auto-fill data
-      const hardinessZone = HARDINESS_ZONES[savedLocation as keyof typeof HARDINESS_ZONES] || "Unknown"
+    console.log('Checking saved location:', savedLocation) // Debug log
+    console.log('Checking saved category:', savedCategory) // Debug log
+    
+    if (savedLocation && savedLocation.trim() !== '') {
+      // Parse location and auto-fill data using the same logic as handleZipCodeChange
+      const hardinessZone = HARDINESS_ZONES[savedLocation as keyof typeof HARDINESS_ZONES] || "8a"
+      
+      // Determine city and state based on input
+      let city = "Your City"
+      let state = "Your State"
+      
+      // Handle known zip codes
+      if (savedLocation === "78701") {
+        city = "Austin"
+        state = "TX"
+      } else if (savedLocation.length === 5 && /^\d+$/.test(savedLocation)) {
+        // If it's a 5-digit zip code, try to determine location
+        city = `City for ${savedLocation}`
+        state = "Your State"
+      } else if (savedLocation.includes(",")) {
+        // If it contains a comma, assume it's "City, State" format
+        const parts = savedLocation.split(",").map(part => part.trim())
+        city = parts[0] || "Your City"
+        state = parts[1] || "Your State"
+      } else if (savedLocation.length > 0) {
+        // Assume it's just a city name
+        city = savedLocation
+        state = "Your State"
+      }
       
       setData(prev => ({
         ...prev,
         location: {
-          city: savedLocation === "78701" ? "Austin" : "Your City",
-          state: savedLocation === "78701" ? "TX" : "Your State", 
+          city,
+          state,
           zipCode: savedLocation,
           hardinessZone,
         }
       }))
+      
+      console.log('Skipping to step 2 - location pre-filled') // Debug log
       
       // Skip to step 2 since location is already provided
       setCurrentStep(2)
@@ -111,7 +139,9 @@ export default function OnboardingPage() {
       localStorage.removeItem('userLocation')
     }
     
-    if (savedCategory) {
+    if (savedCategory && savedCategory.trim() !== '') {
+      console.log('Pre-selecting category:', savedCategory) // Debug log
+      
       // Pre-select the plant category if user chose one from landing page
       setData(prev => ({
         ...prev,
