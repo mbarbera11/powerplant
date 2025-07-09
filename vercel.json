@@ -1,26 +1,9 @@
 {
   "version": 2,
-  "name": "powerplant-app",
-  "builds": [
-    {
-      "src": "package.json",
-      "use": "@vercel/next"
-    }
-  ],
-  "routes": [
-    {
-      "src": "/api/(.*)",
-      "dest": "/api/$1"
-    },
-    {
-      "src": "/(.*)",
-      "dest": "/$1"
-    }
-  ],
-  "env": {
-    "NEXT_PUBLIC_OPENWEATHER_API_KEY": "@openweather-api-key",
-    "NEXT_PUBLIC_GOOGLE_MAPS_API_KEY": "@google-maps-api-key"
-  },
+  "buildCommand": "pnpm build",
+  "devCommand": "pnpm dev",
+  "installCommand": "pnpm install",
+  "framework": "nextjs",
   "headers": [
     {
       "source": "/sw.js",
