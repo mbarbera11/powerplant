@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Progress } from "@/components/ui/progress"
@@ -24,6 +24,7 @@ import {
   Home,
   Info,
   Zap,
+  CheckCircle,
 } from "lucide-react"
 import Link from "next/link"
 
@@ -84,6 +85,47 @@ export default function OnboardingPage() {
   const [isLoading, setIsLoading] = useState(false)
   const [showTooltip, setShowTooltip] = useState(false)
 
+  // Check for saved location and category on component mount
+  useEffect(() => {
+    const savedLocation = localStorage.getItem('userLocation')
+    const savedCategory = localStorage.getItem('preferredCategory')
+    
+    if (savedLocation) {
+      // Parse location and auto-fill data
+      const hardinessZone = HARDINESS_ZONES[savedLocation as keyof typeof HARDINESS_ZONES] || "Unknown"
+      
+      setData(prev => ({
+        ...prev,
+        location: {
+          city: savedLocation === "78701" ? "Austin" : "Your City",
+          state: savedLocation === "78701" ? "TX" : "Your State", 
+          zipCode: savedLocation,
+          hardinessZone,
+        }
+      }))
+      
+      // Skip to step 2 since location is already provided
+      setCurrentStep(2)
+      
+      // Clear the saved location so it doesn't interfere with future visits
+      localStorage.removeItem('userLocation')
+    }
+    
+    if (savedCategory) {
+      // Pre-select the plant category if user chose one from landing page
+      setData(prev => ({
+        ...prev,
+        preferences: {
+          ...prev.preferences,
+          plantTypes: [savedCategory]
+        }
+      }))
+      
+      // Clear the saved category
+      localStorage.removeItem('preferredCategory')
+    }
+  }, [])
+
   const totalSteps = 3
   const progress = (currentStep / totalSteps) * 100
 
@@ -119,16 +161,41 @@ export default function OnboardingPage() {
     }
   }
 
-  const handleZipCodeChange = (zipCode: string) => {
-    const hardinessZone = HARDINESS_ZONES[zipCode as keyof typeof HARDINESS_ZONES] || "Unknown"
+  const handleZipCodeChange = (input: string) => {
+    // Check if it's a known zip code
+    const hardinessZone = HARDINESS_ZONES[input as keyof typeof HARDINESS_ZONES] || "8a"
+    
+    // Determine city and state based on input
+    let city = "Your City"
+    let state = "Your State"
+    
+    // Handle known zip codes
+    if (input === "78701") {
+      city = "Austin"
+      state = "TX"
+    } else if (input.length === 5 && /^\d+$/.test(input)) {
+      // If it's a 5-digit zip code, try to determine location
+      city = `City for ${input}`
+      state = "Your State"
+    } else if (input.includes(",")) {
+      // If it contains a comma, assume it's "City, State" format
+      const parts = input.split(",").map(part => part.trim())
+      city = parts[0] || "Your City"
+      state = parts[1] || "Your State"
+    } else if (input.length > 0) {
+      // Assume it's just a city name
+      city = input
+      state = "Your State"
+    }
+    
     setData((prev) => ({
       ...prev,
       location: {
         ...prev.location,
-        zipCode,
+        zipCode: input,
         hardinessZone,
-        city: zipCode === "78701" ? "Austin" : "Your City",
-        state: zipCode === "78701" ? "TX" : "Your State",
+        city,
+        state,
       },
     }))
   }
@@ -251,16 +318,36 @@ function LocationStep({
   showTooltip,
   setShowTooltip,
 }: any) {
+  const hasPrefilledLocation = data.location.zipCode && data.location.hardinessZone
+  
   return (
     <Card className="border-0 shadow-lg">
       <CardHeader>
         <CardTitle className="text-2xl font-bold text-powerplant-green font-montserrat flex items-center gap-2">
           <MapPin className="w-6 h-6" />
-          Where will you grow your power?
+          {hasPrefilledLocation ? "Confirm your location" : "Where will you grow your power?"}
         </CardTitle>
-        <p className="text-gray-600">We'll recommend plants guaranteed to thrive in your climate</p>
+        <p className="text-gray-600">
+          {hasPrefilledLocation 
+            ? "We've saved your location from the previous step. You can modify it if needed."
+            : "We'll recommend plants guaranteed to thrive in your climate"
+          }
+        </p>
       </CardHeader>
       <CardContent className="space-y-6">
+        {/* Show pre-filled location notification */}
+        {hasPrefilledLocation && (
+          <div className="bg-gradient-to-r from-powerplant-green/10 to-energy-yellow/10 p-4 rounded-lg border border-powerplant-green/20">
+            <div className="flex items-center gap-2 text-powerplant-green font-medium">
+              <CheckCircle className="w-5 h-5" />
+              Location automatically set from your entry
+            </div>
+            <p className="text-sm text-gray-600 mt-1">
+              You can change this below if needed, or continue to the next step.
+            </p>
+          </div>
+        )}
+        
         {/* Auto-detect Location */}
         <div>
           <Button
@@ -276,13 +363,17 @@ function LocationStep({
 
         {/* Manual Entry */}
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">Enter your zip code or city</label>
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            {hasPrefilledLocation ? "Update your zip code or city" : "Enter your zip code or city"}
+          </label>
           <input
             type="text"
             placeholder="e.g., 78701 or Austin, TX"
             value={data.location.zipCode}
             onChange={(e) => onZipCodeChange(e.target.value)}
-            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-powerplant-green focus:border-transparent"
+            className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-powerplant-green focus:border-transparent ${
+              hasPrefilledLocation ? "border-powerplant-green/50 bg-powerplant-green/5" : "border-gray-300"
+            }`}
           />
         </div>
 
