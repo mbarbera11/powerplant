@@ -14,9 +14,6 @@ import {
   FlowerIcon as Herb,
   TreePine,
   Star,
-  Instagram,
-  Twitter,
-  Facebook,
   Zap,
   CheckCircle,
   Users,
@@ -31,12 +28,10 @@ export default function PowerPlantLanding() {
   const handleGetStarted = () => {
     if (location.trim()) {
       // Store location in localStorage for the onboarding process
-      console.log('Saving location to localStorage:', location.trim()) // Debug log
       localStorage.setItem('userLocation', location.trim())
       router.push('/onboarding')
     } else {
       // If no location, still go to onboarding but they'll be prompted there
-      console.log('No location entered, going to onboarding normally') // Debug log
       router.push('/onboarding')
     }
   }
@@ -328,13 +323,13 @@ export default function PowerPlantLanding() {
 
             <div className="flex items-center space-x-4">
               <Link href="#" className="text-gray-400 hover:text-white transition-colors">
-                <Instagram className="w-6 h-6" />
+                <div className="w-6 h-6 bg-gray-400 rounded"></div>
               </Link>
               <Link href="#" className="text-gray-400 hover:text-white transition-colors">
-                <Twitter className="w-6 h-6" />
+                <div className="w-6 h-6 bg-gray-400 rounded"></div>
               </Link>
               <Link href="#" className="text-gray-400 hover:text-white transition-colors">
-                <Facebook className="w-6 h-6" />
+                <div className="w-6 h-6 bg-gray-400 rounded"></div>
               </Link>
             </div>
           </div>

@@ -27,8 +27,10 @@ import {
   CheckCircle,
 } from "lucide-react"
 import Link from "next/link"
+import { useRouter } from "next/navigation"
 
 interface OnboardingData {
+  // Step 1: Location & Climate
   location: {
     city: string
     state: string
@@ -36,16 +38,18 @@ interface OnboardingData {
     hardinessZone: string
     coordinates?: { lat: number; lng: number }
   }
-  spaceEnvironment: {
+  // Step 2: Garden Space & Experience
+  gardenSpace: {
     gardenSize: string
     sunExposure: string
     experienceLevel: string
-    primaryGoal: string
     maintenancePreference: string
     budgetRange: string
   }
+  // Step 3: Plant Preferences
   preferences: {
     plantTypes: string[]
+    primaryGoal: string
     specialInterests: string[]
     colorPreferences: string[]
   }
@@ -68,30 +72,28 @@ export default function OnboardingPage() {
   const [currentStep, setCurrentStep] = useState(1)
   const [data, setData] = useState<OnboardingData>({
     location: { city: "", state: "", zipCode: "", hardinessZone: "" },
-    spaceEnvironment: {
+    gardenSpace: {
       gardenSize: "",
       sunExposure: "",
       experienceLevel: "",
-      primaryGoal: "",
       maintenancePreference: "",
       budgetRange: "",
     },
     preferences: {
       plantTypes: [],
+      primaryGoal: "",
       specialInterests: [],
       colorPreferences: [],
     },
   })
   const [isLoading, setIsLoading] = useState(false)
   const [showTooltip, setShowTooltip] = useState(false)
+  const router = useRouter()
 
   // Check for saved location and category on component mount
   useEffect(() => {
     const savedLocation = localStorage.getItem('userLocation')
     const savedCategory = localStorage.getItem('preferredCategory')
-    
-    console.log('Checking saved location:', savedLocation) // Debug log
-    console.log('Checking saved category:', savedCategory) // Debug log
     
     if (savedLocation && savedLocation.trim() !== '') {
       // Parse location and auto-fill data using the same logic as handleZipCodeChange
@@ -130,8 +132,6 @@ export default function OnboardingPage() {
         }
       }))
       
-      console.log('Skipping to step 2 - location pre-filled') // Debug log
-      
       // Skip to step 2 since location is already provided
       setCurrentStep(2)
       
@@ -140,8 +140,6 @@ export default function OnboardingPage() {
     }
     
     if (savedCategory && savedCategory.trim() !== '') {
-      console.log('Pre-selecting category:', savedCategory) // Debug log
-      
       // Pre-select the plant category if user chose one from landing page
       setData(prev => ({
         ...prev,
@@ -245,15 +243,21 @@ export default function OnboardingPage() {
   const canProceed = () => {
     switch (currentStep) {
       case 1:
-        return data.location.zipCode.length >= 5
+        return data.location.zipCode.length >= 3
       case 2:
-        return Object.values(data.spaceEnvironment).every((value) => value !== "")
+        return data.gardenSpace.gardenSize !== "" && data.gardenSpace.sunExposure !== "" && data.gardenSpace.experienceLevel !== ""
       case 3:
-        return data.preferences.plantTypes.length > 0
+        return data.preferences.plantTypes.length > 0 && data.preferences.primaryGoal !== ""
       default:
         return false
     }
   }
+
+  const stepTitles = [
+    "Where will you grow?",
+    "Tell us about your space",
+    "What do you want to grow?"
+  ]
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-powerplant-green/5 via-white to-energy-yellow/5">
@@ -277,7 +281,7 @@ export default function OnboardingPage() {
         {/* Progress Bar */}
         <div className="mb-8">
           <div className="flex items-center justify-between mb-2">
-            <span className="text-sm font-medium text-powerplant-green">Powering up your plant profile...</span>
+            <span className="text-sm font-medium text-powerplant-green">{stepTitles[currentStep - 1]}</span>
             <span className="text-sm text-gray-500">{Math.round(progress)}%</span>
           </div>
           <Progress value={progress} className="h-2" />
@@ -296,8 +300,8 @@ export default function OnboardingPage() {
               setShowTooltip={setShowTooltip}
             />
           )}
-          {currentStep === 2 && <SpaceEnvironmentStep data={data} setData={setData} />}
-          {currentStep === 3 && <PreferencesStep data={data} setData={setData} />}
+          {currentStep === 2 && <GardenSpaceStep data={data} setData={setData} />}
+          {currentStep === 3 && <PlantPreferencesStep data={data} setData={setData} />}
         </div>
 
         {/* Navigation */}
@@ -313,12 +317,6 @@ export default function OnboardingPage() {
           </Button>
 
           <div className="flex items-center gap-4">
-            {currentStep < totalSteps && (
-              <Button variant="ghost" onClick={() => setCurrentStep(totalSteps)}>
-                Skip
-              </Button>
-            )}
-
             {currentStep < totalSteps ? (
               <Button
                 onClick={nextStep}
@@ -329,7 +327,7 @@ export default function OnboardingPage() {
                 <ArrowRight className="w-4 h-4" />
               </Button>
             ) : (
-              <ResultsPreview data={data} />
+              <CompleteOnboarding data={data} />
             )}
           </div>
         </div>
@@ -338,7 +336,7 @@ export default function OnboardingPage() {
   )
 }
 
-// Location Step Component
+// Step 1: Location & Climate
 function LocationStep({
   data,
   setData,
@@ -355,7 +353,7 @@ function LocationStep({
       <CardHeader>
         <CardTitle className="text-2xl font-bold text-powerplant-green font-montserrat flex items-center gap-2">
           <MapPin className="w-6 h-6" />
-          {hasPrefilledLocation ? "Confirm your location" : "Where will you grow your power?"}
+          Where will you grow your power?
         </CardTitle>
         <p className="text-gray-600">
           {hasPrefilledLocation 
@@ -394,7 +392,7 @@ function LocationStep({
         {/* Manual Entry */}
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">
-            {hasPrefilledLocation ? "Update your zip code or city" : "Enter your zip code or city"}
+            Enter your zip code or city
           </label>
           <input
             type="text"
@@ -448,8 +446,8 @@ function LocationStep({
   )
 }
 
-// Space & Environment Step Component
-function SpaceEnvironmentStep({ data, setData }: any) {
+// Step 2: Garden Space & Experience
+function GardenSpaceStep({ data, setData }: any) {
   const questions = [
     {
       key: "gardenSize",
@@ -457,9 +455,9 @@ function SpaceEnvironmentStep({ data, setData }: any) {
       icon: Home,
       options: [
         { value: "container", label: "Container/Balcony", desc: "Pots and small containers" },
-        { value: "small", label: "Small Bed", desc: "Up to 50 sq ft" },
-        { value: "medium", label: "Medium Yard", desc: "50-500 sq ft" },
-        { value: "large", label: "Large Property", desc: "500+ sq ft" },
+        { value: "small", label: "Small Garden", desc: "Up to 50 sq ft" },
+        { value: "medium", label: "Medium Garden", desc: "50-500 sq ft" },
+        { value: "large", label: "Large Garden", desc: "500+ sq ft" },
       ],
     },
     {
@@ -468,9 +466,9 @@ function SpaceEnvironmentStep({ data, setData }: any) {
       icon: Sun,
       options: [
         { value: "full-sun", label: "Full Sun", desc: "6+ hours direct sunlight", icon: Sun },
-        { value: "partial-shade", label: "Partial Shade", desc: "3-6 hours sunlight", icon: Cloud },
-        { value: "full-shade", label: "Full Shade", desc: "Less than 3 hours", icon: CloudRain },
-        { value: "mixed", label: "Mixed Areas", desc: "Different sun conditions", icon: Palette },
+        { value: "partial-sun", label: "Partial Sun", desc: "3-6 hours sunlight", icon: Cloud },
+        { value: "partial-shade", label: "Partial Shade", desc: "2-4 hours sunlight", icon: CloudRain },
+        { value: "full-shade", label: "Full Shade", desc: "Less than 2 hours", icon: Palette },
       ],
     },
     {
@@ -479,19 +477,8 @@ function SpaceEnvironmentStep({ data, setData }: any) {
       icon: Star,
       options: [
         { value: "beginner", label: "Beginner", desc: "New to gardening" },
-        { value: "some", label: "Some Experience", desc: "Grown a few plants" },
-        { value: "experienced", label: "Experienced", desc: "Confident gardener" },
-      ],
-    },
-    {
-      key: "primaryGoal",
-      title: "What's your main gardening goal?",
-      icon: Target,
-      options: [
-        { value: "flowers", label: "Beautiful Flowers", desc: "Colorful blooms and aesthetics" },
-        { value: "food", label: "Food Production", desc: "Grow your own vegetables/herbs" },
-        { value: "low-maintenance", label: "Low Maintenance", desc: "Easy-care plants" },
-        { value: "wildlife", label: "Wildlife-Friendly", desc: "Attract birds and pollinators" },
+        { value: "intermediate", label: "Intermediate", desc: "Some experience" },
+        { value: "advanced", label: "Advanced", desc: "Confident gardener" },
       ],
     },
     {
@@ -499,20 +486,20 @@ function SpaceEnvironmentStep({ data, setData }: any) {
       title: "How much time can you dedicate?",
       icon: Clock,
       options: [
-        { value: "minimal", label: "Minimal", desc: "Set it and forget it" },
-        { value: "moderate", label: "Moderate", desc: "Weekly care routine" },
-        { value: "high", label: "High Involvement", desc: "Daily gardening activities" },
+        { value: "low", label: "Low Maintenance", desc: "Minimal daily care" },
+        { value: "moderate", label: "Moderate Care", desc: "Weekly maintenance" },
+        { value: "high", label: "High Involvement", desc: "Daily gardening" },
       ],
     },
     {
       key: "budgetRange",
-      title: "What's your initial plant budget?",
+      title: "What's your plant budget?",
       icon: DollarSign,
       options: [
         { value: "under-50", label: "Under $50", desc: "Starting small" },
-        { value: "51-150", label: "$51 - $150", desc: "Moderate investment" },
-        { value: "151-300", label: "$151 - $300", desc: "Serious about gardening" },
-        { value: "300-plus", label: "$300+", desc: "Go big or go home" },
+        { value: "50-150", label: "$50 - $150", desc: "Moderate investment" },
+        { value: "150-300", label: "$150 - $300", desc: "Serious gardener" },
+        { value: "300-plus", label: "$300+", desc: "Sky's the limit" },
       ],
     },
   ]
@@ -520,8 +507,8 @@ function SpaceEnvironmentStep({ data, setData }: any) {
   const updateAnswer = (key: string, value: string) => {
     setData((prev: any) => ({
       ...prev,
-      spaceEnvironment: {
-        ...prev.spaceEnvironment,
+      gardenSpace: {
+        ...prev.gardenSpace,
         [key]: value,
       },
     }))
@@ -530,13 +517,14 @@ function SpaceEnvironmentStep({ data, setData }: any) {
   return (
     <Card className="border-0 shadow-lg">
       <CardHeader>
-        <CardTitle className="text-2xl font-bold text-powerplant-green font-montserrat">
-          Tell us about your growing space
+        <CardTitle className="text-2xl font-bold text-powerplant-green font-montserrat flex items-center gap-2">
+          <Home className="w-6 h-6" />
+          Tell us about your garden space
         </CardTitle>
-        <p className="text-gray-600">Help us unlock your garden's full potential</p>
+        <p className="text-gray-600">This helps us recommend plants that will thrive in your specific conditions</p>
       </CardHeader>
-      <CardContent className="space-y-8">
-        {questions.map((question, index) => (
+      <CardContent className="space-y-6">
+        {questions.map((question) => (
           <div key={question.key} className="space-y-3">
             <div className="flex items-center gap-2 mb-3">
               <question.icon className="w-5 h-5 text-powerplant-green" />
@@ -548,7 +536,7 @@ function SpaceEnvironmentStep({ data, setData }: any) {
                   key={option.value}
                   onClick={() => updateAnswer(question.key, option.value)}
                   className={`p-4 text-left border-2 rounded-lg transition-all hover:border-powerplant-green/50 ${
-                    data.spaceEnvironment[question.key] === option.value
+                    data.gardenSpace[question.key] === option.value
                       ? "border-powerplant-green bg-powerplant-green/5"
                       : "border-gray-200"
                   }`}
@@ -568,8 +556,8 @@ function SpaceEnvironmentStep({ data, setData }: any) {
   )
 }
 
-// Preferences Step Component
-function PreferencesStep({ data, setData }: any) {
+// Step 3: Plant Preferences
+function PlantPreferencesStep({ data, setData }: any) {
   const togglePlantType = (type: string) => {
     setData((prev: any) => ({
       ...prev,
@@ -594,21 +582,39 @@ function PreferencesStep({ data, setData }: any) {
     }))
   }
 
+  const setPrimaryGoal = (goal: string) => {
+    setData((prev: any) => ({
+      ...prev,
+      preferences: {
+        ...prev.preferences,
+        primaryGoal: goal,
+      },
+    }))
+  }
+
   const plantTypes = [
-    { value: "annual-flowers", label: "Annual Flowers", icon: Flower },
-    { value: "perennial-flowers", label: "Perennial Flowers", icon: Flower },
     { value: "vegetables", label: "Vegetables", icon: Carrot },
     { value: "herbs", label: "Herbs", icon: Leaf },
+    { value: "flowers", label: "Flowers", icon: Flower },
     { value: "shrubs", label: "Shrubs", icon: TreePine },
+  ]
+
+  const primaryGoals = [
+    { value: "food", label: "Grow Food", desc: "Vegetables and herbs for cooking" },
+    { value: "beauty", label: "Beauty & Color", desc: "Flowers and ornamental plants" },
+    { value: "wildlife", label: "Wildlife Habitat", desc: "Attract birds and pollinators" },
+    { value: "relaxation", label: "Relaxation", desc: "Peaceful garden space" },
   ]
 
   const specialInterests = [
     "Native plants",
     "Pollinator-friendly",
     "Deer resistant",
-    "Fragrant plants",
     "Drought tolerant",
+    "Fragrant plants",
     "Fast growing",
+    "Edible flowers",
+    "Medicinal herbs",
   ]
 
   const colorOptions = [
@@ -621,16 +627,17 @@ function PreferencesStep({ data, setData }: any) {
   return (
     <Card className="border-0 shadow-lg">
       <CardHeader>
-        <CardTitle className="text-2xl font-bold text-powerplant-green font-montserrat">
-          What will power your garden?
+        <CardTitle className="text-2xl font-bold text-powerplant-green font-montserrat flex items-center gap-2">
+          <Target className="w-6 h-6" />
+          What do you want to grow?
         </CardTitle>
-        <p className="text-gray-600">Select plants that match your goals - you've got this!</p>
+        <p className="text-gray-600">Tell us your preferences so we can find your perfect plants</p>
       </CardHeader>
       <CardContent className="space-y-8">
         {/* Plant Types */}
         <div>
-          <h3 className="font-semibold text-gray-900 mb-4">Plant Types</h3>
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+          <h3 className="font-semibold text-gray-900 mb-4">What types of plants interest you? (Select all that apply)</h3>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
             {plantTypes.map((type) => (
               <button
                 key={type.value}
@@ -648,9 +655,30 @@ function PreferencesStep({ data, setData }: any) {
           </div>
         </div>
 
+        {/* Primary Goal */}
+        <div>
+          <h3 className="font-semibold text-gray-900 mb-4">What's your main gardening goal?</h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            {primaryGoals.map((goal) => (
+              <button
+                key={goal.value}
+                onClick={() => setPrimaryGoal(goal.value)}
+                className={`p-4 text-left border-2 rounded-lg transition-all hover:border-powerplant-green/50 ${
+                  data.preferences.primaryGoal === goal.value
+                    ? "border-powerplant-green bg-powerplant-green/5"
+                    : "border-gray-200"
+                }`}
+              >
+                <div className="font-medium">{goal.label}</div>
+                <div className="text-sm text-gray-600">{goal.desc}</div>
+              </button>
+            ))}
+          </div>
+        </div>
+
         {/* Special Interests */}
         <div>
-          <h3 className="font-semibold text-gray-900 mb-4">Special Interests</h3>
+          <h3 className="font-semibold text-gray-900 mb-4">Special Interests (Optional)</h3>
           <div className="flex flex-wrap gap-2">
             {specialInterests.map((interest) => (
               <button
@@ -703,51 +731,42 @@ function PreferencesStep({ data, setData }: any) {
   )
 }
 
-// Results Preview Component
-function ResultsPreview({ data }: any) {
-  const mockRecommendations = [
-    { name: "Marigolds", type: "Annual Flower", match: "98%" },
-    { name: "Basil", type: "Herb", match: "95%" },
-    { name: "Tomatoes", type: "Vegetable", match: "92%" },
-  ]
+// Complete Onboarding Component
+function CompleteOnboarding({ data }: any) {
+  const router = useRouter()
 
-  const totalRecommendations = 47
+  const handleComplete = () => {
+    // Save comprehensive user profile to localStorage for results page
+    const userProfile = {
+      location: data.location,
+      preferences: {
+        // Garden space info
+        gardenSize: data.gardenSpace.gardenSize,
+        sunExposure: data.gardenSpace.sunExposure,
+        experienceLevel: data.gardenSpace.experienceLevel,
+        maintenancePreference: data.gardenSpace.maintenancePreference,
+        budgetRange: data.gardenSpace.budgetRange,
+        // Plant preferences
+        plantTypes: data.preferences.plantTypes,
+        primaryGoal: data.preferences.primaryGoal,
+        specialInterests: data.preferences.specialInterests,
+        colorPreferences: data.preferences.colorPreferences,
+      }
+    }
+    
+    localStorage.setItem('userProfile', JSON.stringify(userProfile))
+    
+    // Navigate to results page
+    router.push('/results')
+  }
 
   return (
-    <Card className="border-0 shadow-lg bg-gradient-to-br from-powerplant-green/5 to-energy-yellow/5">
-      <CardContent className="p-6">
-        <div className="text-center">
-          <div className="flex items-center justify-center gap-2 mb-4">
-            <Zap className="w-8 h-8 text-energy-yellow" />
-            <h3 className="text-xl font-bold text-powerplant-green font-montserrat">Your Garden Power is Ready!</h3>
-          </div>
-
-          <div className="mb-6">
-            <div className="text-3xl font-bold text-powerplant-green mb-2">
-              {totalRecommendations} power plants found
-            </div>
-            <p className="text-gray-600">Perfect matches guaranteed to thrive in your {data.location.city} garden</p>
-          </div>
-
-          <div className="space-y-3 mb-6">
-            <h4 className="font-semibold text-gray-900">Top Recommendations:</h4>
-            {mockRecommendations.map((plant, index) => (
-              <div key={index} className="flex items-center justify-between bg-white p-3 rounded-lg">
-                <div className="text-left">
-                  <div className="font-medium">{plant.name}</div>
-                  <div className="text-sm text-gray-600">{plant.type}</div>
-                </div>
-                <Badge className="bg-powerplant-green text-white">{plant.match} match</Badge>
-              </div>
-            ))}
-          </div>
-
-          <Button className="w-full bg-gradient-to-r from-powerplant-green to-energy-yellow hover:from-powerplant-green/90 hover:to-energy-yellow/90 text-white font-semibold py-3 flex items-center justify-center gap-2 transform hover:scale-105 transition-all duration-200">
-            <Zap className="w-5 h-5" />
-            Unlock My Plant Power
-          </Button>
-        </div>
-      </CardContent>
-    </Card>
+    <Button 
+      onClick={handleComplete}
+      className="bg-gradient-to-r from-powerplant-green to-energy-yellow hover:from-powerplant-green/90 hover:to-energy-yellow/90 text-white font-semibold py-3 px-8 flex items-center gap-2 transform hover:scale-105 transition-all duration-200"
+    >
+      <Zap className="w-5 h-5" />
+      Get My Plant Recommendations
+    </Button>
   )
 }
