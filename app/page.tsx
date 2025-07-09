@@ -309,7 +309,7 @@ export default function PowerPlantLanding() {
           </div>
 
           <div className="border-t border-gray-800 mt-8 pt-8 text-center text-gray-400 text-sm">
-            <p>&copy; 2024 PowerPlant. All rights reserved. Grow your power, naturally.</p>
+            <p>&copy; 2024 PowerPlant. All rights reserved. Grow your power, naturally! 🌱</p>
           </div>
         </div>
       </footer>
