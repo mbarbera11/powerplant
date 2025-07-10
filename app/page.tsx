@@ -149,7 +149,7 @@ export default function PowerPlantLanding() {
                 </div>
                 <Input
                   type="text"
-                  placeholder="Enter your zip code or city"
+                  placeholder="Zip code or city"
                   value={location}
                   onChange={(e) => setLocation(e.target.value)}
                   onKeyDown={(e) => e.key === 'Enter' && handleGetStarted()}
