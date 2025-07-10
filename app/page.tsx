@@ -2,7 +2,7 @@
 
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
+import { AddressAutocomplete } from "@/components/ui/address-autocomplete"
 import { Card, CardContent } from "@/components/ui/card"
 import {
   Leaf,
@@ -142,19 +142,20 @@ export default function PowerPlantLanding() {
             </div>
 
             {/* Location Input CTA */}
-            <div className="max-w-md mx-auto mb-8">
+            <div className="max-w-2xl mx-auto mb-8">
               <div className="flex gap-2 p-2 bg-white rounded-full shadow-lg border-2 border-powerplant-green/20 hover:border-powerplant-green/40 transition-colors">
-                <div className="flex items-center pl-4 text-gray-500">
-                  <MapPin className="w-5 h-5" />
+                <div className="flex-1">
+                  <AddressAutocomplete
+                    value={location}
+                    onChange={setLocation}
+                    onSelect={(placeId, address) => {
+                      setLocation(address)
+                      handleGetStarted()
+                    }}
+                    placeholder="Enter your address or city"
+                    className="border-0 bg-transparent focus-visible:ring-0 text-lg pl-2"
+                  />
                 </div>
-                <Input
-                  type="text"
-                  placeholder="Enter your address or city"
-                  value={location}
-                  onChange={(e) => setLocation(e.target.value)}
-                  onKeyDown={(e) => e.key === 'Enter' && handleGetStarted()}
-                  className="border-0 bg-transparent focus-visible:ring-0 text-lg"
-                />
                 <Button
                   size="lg"
                   onClick={handleGetStarted}

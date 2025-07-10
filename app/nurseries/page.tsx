@@ -33,6 +33,7 @@ import Link from "next/link"
 import Image from "next/image"
 import { geocodeLocation, getNearbyNurseries, type LocationCoordinates, type NurseryLocation } from "@/lib/api/maps"
 import { useSearchParams } from "next/navigation"
+import { AddressAutocomplete } from "@/components/ui/address-autocomplete"
 
 interface Nursery {
   id: string
@@ -423,23 +424,15 @@ export default function NurseriesPage() {
           <div className="flex flex-wrap gap-4 flex-1">
             {/* Location Input */}
             <div className="relative min-w-64">
-              <MapPin className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
-              <Input
-                placeholder="Enter your address or city..."
+              <AddressAutocomplete
                 value={locationInput}
-                onChange={(e) => setLocationInput(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && handleLocationSearch(locationInput)}
-                className="pl-10"
+                onChange={setLocationInput}
+                onSelect={(placeId, address) => {
+                  setLocationInput(address)
+                  handleLocationSearch(address)
+                }}
+                placeholder="Enter your address or city..."
               />
-              {locationInput !== (userLocation?.formattedAddress || '') && (
-                <Button
-                  size="sm"
-                  onClick={() => handleLocationSearch(locationInput)}
-                  className="absolute right-2 top-1/2 transform -translate-y-1/2 h-7 px-3 bg-powerplant-green text-white"
-                >
-                  Search
-                </Button>
-              )}
             </div>
             
             {/* Search */}

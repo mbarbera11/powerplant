@@ -29,6 +29,7 @@ import {
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { geocodeLocation } from "@/lib/api/maps"
+import { AddressAutocomplete } from "@/components/ui/address-autocomplete"
 
 interface OnboardingData {
   // Step 1: Location & Climate
@@ -432,11 +433,13 @@ function LocationStep({
           <label className="block text-sm font-medium text-gray-700 mb-2">
             Address or city
           </label>
-          <input
-            type="text"
-            placeholder="e.g., 123 Main St, Austin, TX or Austin, TX"
+          <AddressAutocomplete
             value={data.location.zipCode}
-            onChange={(e) => handleAddressChange(e.target.value)}
+            onChange={(value) => handleAddressChange(value)}
+            onSelect={(placeId, address) => {
+              handleAddressChange(address)
+            }}
+            placeholder="e.g., 123 Main St, Austin, TX or Austin, TX"
             className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-powerplant-green focus:border-transparent ${
               hasPrefilledLocation ? "border-powerplant-green/50 bg-powerplant-green/5" : "border-gray-300"
             }`}
