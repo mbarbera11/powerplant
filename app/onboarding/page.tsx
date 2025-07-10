@@ -28,6 +28,7 @@ import {
 } from "lucide-react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
+import { geocodeLocation } from "@/lib/api/maps"
 
 interface OnboardingData {
   // Step 1: Location & Climate
@@ -55,18 +56,7 @@ interface OnboardingData {
   }
 }
 
-const HARDINESS_ZONES = {
-  "10001": "7a",
-  "90210": "10a",
-  "60601": "6a",
-  "30301": "8a",
-  "80201": "5b",
-  "98101": "9a",
-  "33101": "10b",
-  "78701": "8b",
-  "97201": "9a",
-  "02101": "6b",
-}
+// Location initialization will use geocoding instead of hardcoded zones
 
 export default function OnboardingPage() {
   const [currentStep, setCurrentStep] = useState(1)
@@ -96,47 +86,14 @@ export default function OnboardingPage() {
     const savedCategory = localStorage.getItem('preferredCategory')
     
     if (savedLocation && savedLocation.trim() !== '') {
-      // Parse location and auto-fill data using the same logic as handleZipCodeChange
-      const hardinessZone = HARDINESS_ZONES[savedLocation as keyof typeof HARDINESS_ZONES] || "8a"
-      
-      // Determine city and state based on input
-      let city = "Your City"
-      let state = "Your State"
-      
-      // Handle known zip codes
-      if (savedLocation === "78701") {
-        city = "Austin"
-        state = "TX"
-      } else if (savedLocation.length === 5 && /^\d+$/.test(savedLocation)) {
-        // If it's a 5-digit zip code, try to determine location
-        city = `City for ${savedLocation}`
-        state = "Your State"
-      } else if (savedLocation.includes(",")) {
-        // If it contains a comma, assume it's "City, State" format
-        const parts = savedLocation.split(",").map(part => part.trim())
-        city = parts[0] || "Your City"
-        state = parts[1] || "Your State"
-      } else if (savedLocation.length > 0) {
-        // Assume it's just a city name
-        city = savedLocation
-        state = "Your State"
-      }
-      
-      setData(prev => ({
-        ...prev,
-        location: {
-          city,
-          state,
-          zipCode: savedLocation,
-          hardinessZone,
-        }
-      }))
-      
-      // Skip to step 2 since location is already provided
-      setCurrentStep(2)
-      
-      // Clear the saved location so it doesn't interfere with future visits
-      localStorage.removeItem('userLocation')
+      // Use geocoding to get proper location data
+      handleAddressChange(savedLocation).then(() => {
+        // Skip to step 2 since location is already provided
+        setCurrentStep(2)
+        
+        // Clear the saved location so it doesn't interfere with future visits
+        localStorage.removeItem('userLocation')
+      })
     }
     
     if (savedCategory && savedCategory.trim() !== '') {
@@ -162,21 +119,68 @@ export default function OnboardingPage() {
     try {
       if (navigator.geolocation) {
         navigator.geolocation.getCurrentPosition(
-          (position) => {
-            // Mock location data based on coordinates
-            setData((prev) => ({
-              ...prev,
-              location: {
-                city: "Austin",
-                state: "TX",
-                zipCode: "78701",
-                hardinessZone: "8b",
-                coordinates: {
-                  lat: position.coords.latitude,
-                  lng: position.coords.longitude,
+          async (position) => {
+            try {
+              // Use reverse geocoding to get address from coordinates
+              const response = await fetch(
+                `https://maps.googleapis.com/maps/api/geocode/json?latlng=${position.coords.latitude},${position.coords.longitude}&key=${process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY}`
+              )
+              
+              if (response.ok) {
+                const data = await response.json()
+                if (data.results && data.results.length > 0) {
+                  const result = data.results[0]
+                  
+                  // Extract components
+                  let city = ''
+                  let state = ''
+                  let zipCode = ''
+                  
+                  result.address_components?.forEach((component: any) => {
+                    if (component.types.includes('locality')) {
+                      city = component.long_name
+                    } else if (component.types.includes('administrative_area_level_1')) {
+                      state = component.short_name
+                    } else if (component.types.includes('postal_code')) {
+                      zipCode = component.long_name
+                    }
+                  })
+                  
+                  // Use the geocoding function to get hardiness zone
+                  const locationData = await geocodeLocation(result.formatted_address)
+                  
+                  setData((prev) => ({
+                    ...prev,
+                    location: {
+                      city: city || locationData?.city || "Your City",
+                      state: state || locationData?.state || "Your State",
+                      zipCode: zipCode || locationData?.zipCode || "",
+                      hardinessZone: locationData?.hardinessZone || "8a",
+                      coordinates: {
+                        lat: position.coords.latitude,
+                        lng: position.coords.longitude,
+                      },
+                    },
+                  }))
+                }
+              }
+            } catch (error) {
+              console.error("Reverse geocoding failed:", error)
+              // Fallback to basic coordinates
+              setData((prev) => ({
+                ...prev,
+                location: {
+                  city: "Your City",
+                  state: "Your State", 
+                  zipCode: "",
+                  hardinessZone: "8a",
+                  coordinates: {
+                    lat: position.coords.latitude,
+                    lng: position.coords.longitude,
+                  },
                 },
-              },
-            }))
+              }))
+            }
             setIsLoading(false)
           },
           () => {
@@ -189,43 +193,77 @@ export default function OnboardingPage() {
     }
   }
 
-  const handleZipCodeChange = (input: string) => {
-    // Check if it's a known zip code
-    const hardinessZone = HARDINESS_ZONES[input as keyof typeof HARDINESS_ZONES] || "8a"
-    
-    // Determine city and state based on input
-    let city = "Your City"
-    let state = "Your State"
-    
-    // Handle known zip codes
-    if (input === "78701") {
-      city = "Austin"
-      state = "TX"
-    } else if (input.length === 5 && /^\d+$/.test(input)) {
-      // If it's a 5-digit zip code, try to determine location
-      city = `City for ${input}`
-      state = "Your State"
-    } else if (input.includes(",")) {
-      // If it contains a comma, assume it's "City, State" format
-      const parts = input.split(",").map(part => part.trim())
-      city = parts[0] || "Your City"
-      state = parts[1] || "Your State"
-    } else if (input.length > 0) {
-      // Assume it's just a city name
-      city = input
-      state = "Your State"
-    }
-    
+  const handleAddressChange = async (input: string) => {
+    // Update the input field immediately for responsiveness
     setData((prev) => ({
       ...prev,
       location: {
         ...prev.location,
-        zipCode: input,
-        hardinessZone,
-        city,
-        state,
+        zipCode: input, // Store the input as zipCode for compatibility
+        hardinessZone: "Loading...",
+        city: "Loading...",
+        state: "Loading...",
       },
     }))
+    
+    // If input is empty, reset to defaults
+    if (!input.trim()) {
+      setData((prev) => ({
+        ...prev,
+        location: {
+          ...prev.location,
+          zipCode: "",
+          hardinessZone: "",
+          city: "",
+          state: "",
+        },
+      }))
+      return
+    }
+    
+    try {
+      // Geocode the address/city input
+      const result = await geocodeLocation(input)
+      
+      if (result) {
+        setData((prev) => ({
+          ...prev,
+          location: {
+            ...prev.location,
+            zipCode: result.zipCode || input, // Use extracted zip or keep original input
+            hardinessZone: result.hardinessZone || "8a",
+            city: result.city,
+            state: result.state,
+            coordinates: { lat: result.lat, lng: result.lng }
+          },
+        }))
+      } else {
+        // Fallback if geocoding fails
+        setData((prev) => ({
+          ...prev,
+          location: {
+            ...prev.location,
+            zipCode: input,
+            hardinessZone: "8a", // Default fallback
+            city: input.includes(",") ? input.split(",")[0].trim() : input,
+            state: input.includes(",") ? input.split(",")[1]?.trim() || "Unknown" : "Unknown",
+          },
+        }))
+      }
+    } catch (error) {
+      console.error("Error geocoding address:", error)
+      // Fallback on error
+      setData((prev) => ({
+        ...prev,
+        location: {
+          ...prev.location,
+          zipCode: input,
+          hardinessZone: "8a",
+          city: "Unknown City",
+          state: "Unknown State",
+        },
+      }))
+    }
   }
 
   const nextStep = () => {
@@ -294,7 +332,7 @@ export default function OnboardingPage() {
               data={data}
               setData={setData}
               onLocationDetection={handleLocationDetection}
-              onZipCodeChange={handleZipCodeChange}
+              onZipCodeChange={handleAddressChange}
               isLoading={isLoading}
               showTooltip={showTooltip}
               setShowTooltip={setShowTooltip}
@@ -392,13 +430,13 @@ function LocationStep({
         {/* Manual Entry */}
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">
-            Zip code or city
+            Address or city
           </label>
           <input
             type="text"
-            placeholder="e.g., 78701 or Austin, TX"
+            placeholder="e.g., 123 Main St, Austin, TX or Austin, TX"
             value={data.location.zipCode}
-            onChange={(e) => onZipCodeChange(e.target.value)}
+            onChange={(e) => handleAddressChange(e.target.value)}
             className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-powerplant-green focus:border-transparent ${
               hasPrefilledLocation ? "border-powerplant-green/50 bg-powerplant-green/5" : "border-gray-300"
             }`}

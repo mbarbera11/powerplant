@@ -37,6 +37,211 @@ export interface NurseryDetails {
 
 const GOOGLE_MAPS_API_KEY = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || 'demo_key'
 
+export interface LocationCoordinates {
+  lat: number
+  lng: number
+  city: string
+  state: string
+  zipCode?: string
+  formattedAddress: string
+  hardinessZone?: string
+}
+
+// Comprehensive hardiness zone mapping based on zip code patterns and states
+function getHardinessZoneFromLocation(zipCode: string, state: string, lat: number): string {
+  // Direct zip code mappings for specific areas
+  const zipZoneMap: Record<string, string> = {
+    // Texas major cities
+    '78701': '8b', '78702': '8b', '78703': '8b', '78704': '8b', '78705': '8b',
+    '77001': '9a', '77002': '9a', '77003': '9a', // Houston
+    '75201': '8a', '75202': '8a', '75203': '8a', // Dallas
+    '78201': '9a', '78202': '9a', '78203': '9a', // San Antonio
+    
+    // California major cities
+    '90210': '10a', '90211': '10a', '90212': '10a', // Beverly Hills
+    '94102': '10a', '94103': '10a', '94104': '10a', // San Francisco
+    '90001': '10a', '90002': '10a', '90003': '10a', // Los Angeles
+    
+    // New York
+    '10001': '7a', '10002': '7a', '10003': '7a', // Manhattan
+    '11201': '7a', '11202': '7a', '11203': '7a', // Brooklyn
+    
+    // Florida
+    '33101': '10b', '33102': '10b', '33103': '10b', // Miami
+    '32801': '9b', '32802': '9b', '32803': '9b', // Orlando
+    
+    // Illinois
+    '60601': '6a', '60602': '6a', '60603': '6a', // Chicago
+    
+    // Colorado
+    '80201': '5b', '80202': '5b', '80203': '5b', // Denver
+    
+    // Washington
+    '98101': '9a', '98102': '9a', '98103': '9a', // Seattle
+    
+    // Arizona
+    '85001': '9b', '85002': '9b', '85003': '9b', // Phoenix
+  }
+  
+  // Check direct zip mapping first
+  if (zipZoneMap[zipCode]) {
+    return zipZoneMap[zipCode]
+  }
+  
+  // State-based patterns and latitude-based calculations
+  const stateZoneMap: Record<string, (lat: number, zip: string) => string> = {
+    'FL': (lat: number) => lat > 26 ? '9b' : '10b',
+    'HI': () => '11',
+    'CA': (lat: number) => {
+      if (lat > 40) return '9a'
+      if (lat > 36) return '9b'
+      if (lat > 33) return '10a'
+      return '10b'
+    },
+    'AZ': (lat: number) => lat > 34 ? '8b' : '9a',
+    'TX': (lat: number) => {
+      if (lat > 32) return '8a'
+      if (lat > 29) return '8b'
+      return '9a'
+    },
+    'NV': (lat: number) => lat > 36 ? '7a' : '8b',
+    'NM': (lat: number) => lat > 35 ? '6b' : '7a',
+    'LA': () => '9a',
+    'MS': () => '8b',
+    'AL': (lat: number) => lat > 33 ? '8a' : '8b',
+    'GA': (lat: number) => lat > 33 ? '8a' : '8b',
+    'SC': (lat: number) => lat > 33 ? '8a' : '8b',
+    'NC': (lat: number) => lat > 35 ? '7b' : '8a',
+    'VA': (lat: number) => lat > 37 ? '7a' : '7b',
+    'TN': (lat: number) => lat > 36 ? '7a' : '7b',
+    'KY': (lat: number) => lat > 37 ? '6b' : '7a',
+    'WV': (lat: number) => lat > 38 ? '6a' : '6b',
+    'MD': (lat: number) => lat > 39 ? '7a' : '7b',
+    'DE': () => '7a',
+    'NJ': (lat: number) => lat > 40 ? '6b' : '7a',
+    'PA': (lat: number) => lat > 41 ? '6a' : '6b',
+    'NY': (lat: number) => {
+      if (lat > 44) return '5a'
+      if (lat > 42) return '5b'
+      if (lat > 40) return '6b'
+      return '7a'
+    },
+    'CT': () => '6b',
+    'RI': () => '6b',
+    'MA': (lat: number) => lat > 42 ? '6a' : '6b',
+    'VT': (lat: number) => lat > 44 ? '4b' : '5a',
+    'NH': (lat: number) => lat > 44 ? '4b' : '5a',
+    'ME': (lat: number) => lat > 45 ? '4a' : '4b',
+    'OH': (lat: number) => lat > 40 ? '6a' : '6b',
+    'IN': (lat: number) => lat > 40 ? '6a' : '6b',
+    'IL': (lat: number) => lat > 41 ? '5b' : '6a',
+    'MI': (lat: number) => lat > 44 ? '5a' : '5b',
+    'WI': (lat: number) => lat > 44 ? '4b' : '5a',
+    'MN': (lat: number) => lat > 46 ? '3b' : '4a',
+    'IA': (lat: number) => lat > 42 ? '5a' : '5b',
+    'MO': (lat: number) => lat > 38 ? '6a' : '6b',
+    'AR': (lat: number) => lat > 35 ? '7a' : '8a',
+    'OK': (lat: number) => lat > 36 ? '7a' : '7b',
+    'KS': (lat: number) => lat > 38 ? '6a' : '6b',
+    'NE': (lat: number) => lat > 41 ? '5a' : '5b',
+    'SD': (lat: number) => lat > 44 ? '4a' : '4b',
+    'ND': (lat: number) => lat > 47 ? '3a' : '3b',
+    'MT': (lat: number) => lat > 47 ? '4a' : '5a',
+    'WY': (lat: number) => lat > 43 ? '4b' : '5a',
+    'CO': (lat: number) => lat > 39 ? '5a' : '5b',
+    'UT': (lat: number) => lat > 40 ? '6a' : '6b',
+    'ID': (lat: number) => lat > 44 ? '5a' : '6a',
+    'WA': (lat: number) => lat > 47 ? '8a' : '8b',
+    'OR': (lat: number) => lat > 44 ? '8a' : '8b',
+    'AK': (lat: number) => lat > 64 ? '1a' : '2a',
+  }
+  
+  if (stateZoneMap[state]) {
+    return stateZoneMap[state](lat, zipCode)
+  }
+  
+  // Default fallback based on latitude
+  if (lat > 45) return '4b'
+  if (lat > 40) return '6a'
+  if (lat > 35) return '7b'
+  if (lat > 30) return '8b'
+  if (lat > 25) return '9b'
+  return '10a'
+}
+
+export async function geocodeLocation(locationInput: string): Promise<LocationCoordinates | null> {
+  try {
+    if (!GOOGLE_MAPS_API_KEY || GOOGLE_MAPS_API_KEY === 'demo_key') {
+      // Return mock coordinates for development
+      const mockLocations: Record<string, LocationCoordinates> = {
+        '78701': { lat: 30.2672, lng: -97.7431, city: 'Austin', state: 'TX', zipCode: '78701', formattedAddress: 'Austin, TX 78701' },
+        '90210': { lat: 34.0901, lng: -118.4065, city: 'Beverly Hills', state: 'CA', zipCode: '90210', formattedAddress: 'Beverly Hills, CA 90210' },
+        '10001': { lat: 40.7589, lng: -73.9851, city: 'New York', state: 'NY', zipCode: '10001', formattedAddress: 'New York, NY 10001' },
+        'austin': { lat: 30.2672, lng: -97.7431, city: 'Austin', state: 'TX', formattedAddress: 'Austin, TX' },
+        'austin, tx': { lat: 30.2672, lng: -97.7431, city: 'Austin', state: 'TX', formattedAddress: 'Austin, TX' },
+        'los angeles': { lat: 34.0522, lng: -118.2437, city: 'Los Angeles', state: 'CA', formattedAddress: 'Los Angeles, CA' },
+        'new york': { lat: 40.7128, lng: -74.0060, city: 'New York', state: 'NY', formattedAddress: 'New York, NY' }
+      }
+      
+      const normalizedInput = locationInput.toLowerCase().trim()
+      const fallback = mockLocations[normalizedInput] || mockLocations['austin']
+      return {
+        ...fallback,
+        hardinessZone: getHardinessZoneFromLocation(fallback.zipCode || '', fallback.state, fallback.lat)
+      }
+    }
+
+    const response = await fetch(
+      `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(locationInput)}&key=${GOOGLE_MAPS_API_KEY}`
+    )
+
+    if (!response.ok) {
+      throw new Error('Geocoding request failed')
+    }
+
+    const data = await response.json()
+    
+    if (data.status !== 'OK' || !data.results || data.results.length === 0) {
+      return null
+    }
+
+    const result = data.results[0]
+    const location = result.geometry.location
+    
+    // Extract city, state, and zip code from address components
+    let city = ''
+    let state = ''
+    let zipCode = ''
+    
+    result.address_components?.forEach((component: any) => {
+      if (component.types.includes('locality')) {
+        city = component.long_name
+      } else if (component.types.includes('administrative_area_level_1')) {
+        state = component.short_name
+      } else if (component.types.includes('postal_code')) {
+        zipCode = component.long_name
+      }
+    })
+
+    const coordinates = {
+      lat: location.lat,
+      lng: location.lng,
+      city: city || 'Unknown City',
+      state: state || 'Unknown State',
+      zipCode: zipCode || undefined,
+      formattedAddress: result.formatted_address
+    }
+    
+    return {
+      ...coordinates,
+      hardinessZone: getHardinessZoneFromLocation(zipCode || '', state || '', location.lat)
+    }
+  } catch (error) {
+    console.error('Geocoding error:', error)
+    return null
+  }
+}
+
 export async function getNearbyNurseries(lat: number, lng: number, radius = 25000): Promise<NurseryLocation[]> {
   try {
     if (!GOOGLE_MAPS_API_KEY || GOOGLE_MAPS_API_KEY === 'demo_key') {

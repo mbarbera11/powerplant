@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useMemo } from "react"
+import { useState, useMemo, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -31,6 +31,8 @@ import {
 } from "lucide-react"
 import Link from "next/link"
 import Image from "next/image"
+import { geocodeLocation, getNearbyNurseries, type LocationCoordinates, type NurseryLocation } from "@/lib/api/maps"
+import { useSearchParams } from "next/navigation"
 
 interface Nursery {
   id: string
@@ -230,11 +232,89 @@ export default function NurseriesPage() {
   })
   const [shoppingList, setShoppingList] = useState<string[]>([])
   const [showShoppingList, setShowShoppingList] = useState(false)
+  const [userLocation, setUserLocation] = useState<LocationCoordinates | null>(null)
+  const [nurseries, setNurseries] = useState<NurseryLocation[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [locationInput, setLocationInput] = useState("")
+  
+  const searchParams = useSearchParams()
+  
+  // Initialize location from URL params, localStorage, or default
+  useEffect(() => {
+    const initializeLocation = async () => {
+      try {
+        setLoading(true)
+        setError(null)
+        
+        // Try to get location from URL params first
+        const category = searchParams.get('category')
+        const locationParam = searchParams.get('location')
+        
+        // Then try localStorage
+        const savedLocation = localStorage.getItem('userLocation')
+        const locationToUse = locationParam || savedLocation || 'Austin, TX'
+        
+        setLocationInput(locationToUse)
+        
+        // Geocode the location
+        const coordinates = await geocodeLocation(locationToUse)
+        if (coordinates) {
+          setUserLocation(coordinates)
+          
+          // Fetch nurseries for this location
+          const nearbyNurseries = await getNearbyNurseries(coordinates.lat, coordinates.lng)
+          setNurseries(nearbyNurseries)
+          
+          // Store the location for future use
+          localStorage.setItem('userLocation', locationToUse)
+        } else {
+          throw new Error('Unable to find location')
+        }
+      } catch (err) {
+        console.error('Error initializing location:', err)
+        setError('Unable to load nurseries for this location. Please try a different location.')
+        
+        // Fallback to Austin, TX
+        const fallbackLocation = { lat: 30.2672, lng: -97.7431, city: 'Austin', state: 'TX', formattedAddress: 'Austin, TX' }
+        setUserLocation(fallbackLocation)
+        setNurseries([])
+      } finally {
+        setLoading(false)
+      }
+    }
+    
+    initializeLocation()
+  }, [searchParams])
 
-  const userLocation = {
-    city: "Austin",
-    state: "TX",
-    coordinates: { lat: 30.2672, lng: -97.7431 },
+  // Handle location search
+  const handleLocationSearch = async (newLocation: string) => {
+    if (!newLocation.trim()) return
+    
+    try {
+      setLoading(true)
+      setError(null)
+      
+      const coordinates = await geocodeLocation(newLocation)
+      if (coordinates) {
+        setUserLocation(coordinates)
+        setLocationInput(newLocation)
+        
+        // Fetch nurseries for new location
+        const nearbyNurseries = await getNearbyNurseries(coordinates.lat, coordinates.lng)
+        setNurseries(nearbyNurseries)
+        
+        // Store the location
+        localStorage.setItem('userLocation', newLocation)
+      } else {
+        setError('Location not found. Please try a different location.')
+      }
+    } catch (err) {
+      console.error('Error searching location:', err)
+      setError('Unable to search for that location. Please try again.')
+    } finally {
+      setLoading(false)
+    }
   }
 
   const recommendedPlants = [
@@ -246,17 +326,19 @@ export default function NurseriesPage() {
   ]
 
   const filteredNurseries = useMemo(() => {
-    return mockNurseries.filter((nursery) => {
+    return nurseries.filter((nursery) => {
       if (filters.search && !nursery.name.toLowerCase().includes(filters.search.toLowerCase())) return false
-      if (filters.distance !== "All" && nursery.distance > Number.parseInt(filters.distance)) return false
+      if (filters.distance !== "All" && nursery.distance && nursery.distance > Number.parseInt(filters.distance)) return false
       if (filters.rating !== "All" && nursery.rating < Number.parseFloat(filters.rating)) return false
-      if (filters.specialty !== "All" && !nursery.specialties.includes(filters.specialty)) return false
-      if (filters.priceRange !== "All" && nursery.priceRange !== filters.priceRange) return false
-      if (filters.openNow && !nursery.isOpen) return false
-      if (filters.hasRecommendedPlants && !nursery.hasRecommendedPlants) return false
+      if (filters.specialty !== "All" && nursery.specialties && !nursery.specialties.includes(filters.specialty)) return false
+      if (filters.priceRange !== "All") {
+        const priceMap = { "$": 1, "$$": 2, "$$$": 3 }
+        if (nursery.priceLevel !== priceMap[filters.priceRange as keyof typeof priceMap]) return false
+      }
+      if (filters.openNow && !nursery.isOpenNow) return false
       return true
     })
-  }, [filters])
+  }, [filters, nurseries])
 
   const addToShoppingList = (plant: string) => {
     if (!shoppingList.includes(plant)) {
@@ -307,7 +389,7 @@ export default function NurseriesPage() {
             <div className="flex items-center gap-2">
               <MapPin className="w-4 h-4" />
               <span>
-                {userLocation.city}, {userLocation.state}
+                {userLocation ? `${userLocation.city}, ${userLocation.state}` : 'Loading location...'}
               </span>
             </div>
             <div className="flex items-center gap-2">
@@ -339,6 +421,27 @@ export default function NurseriesPage() {
           </div>
 
           <div className="flex flex-wrap gap-4 flex-1">
+            {/* Location Input */}
+            <div className="relative min-w-64">
+              <MapPin className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+              <Input
+                placeholder="Enter your address or city..."
+                value={locationInput}
+                onChange={(e) => setLocationInput(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && handleLocationSearch(locationInput)}
+                className="pl-10"
+              />
+              {locationInput !== (userLocation?.formattedAddress || '') && (
+                <Button
+                  size="sm"
+                  onClick={() => handleLocationSearch(locationInput)}
+                  className="absolute right-2 top-1/2 transform -translate-y-1/2 h-7 px-3 bg-powerplant-green text-white"
+                >
+                  Search
+                </Button>
+              )}
+            </div>
+            
             {/* Search */}
             <div className="relative min-w-64">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
@@ -399,7 +502,37 @@ export default function NurseriesPage() {
         </div>
 
         {/* Content */}
-        {viewMode === "list" ? (
+        {loading ? (
+          <div className="flex items-center justify-center py-20">
+            <div className="text-center">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-powerplant-green mx-auto mb-4"></div>
+              <p className="text-gray-600">Finding the best nurseries in your area...</p>
+            </div>
+          </div>
+        ) : error ? (
+          <div className="flex items-center justify-center py-20">
+            <div className="text-center">
+              <div className="text-red-500 text-lg font-semibold mb-2">Oops! Something went wrong</div>
+              <p className="text-gray-600 mb-4">{error}</p>
+              <Button onClick={() => handleLocationSearch(locationInput)} className="bg-powerplant-green text-white">
+                Try Again
+              </Button>
+            </div>
+          </div>
+        ) : filteredNurseries.length === 0 ? (
+          <div className="flex items-center justify-center py-20">
+            <div className="text-center">
+              <div className="text-gray-500 text-lg font-semibold mb-2">No nurseries found</div>
+              <p className="text-gray-600 mb-4">Try adjusting your filters or search in a different location.</p>
+              <Button onClick={() => setFilters({
+                distance: "25", rating: "All", specialty: "All", priceRange: "All",
+                search: "", openNow: false, hasRecommendedPlants: false
+              })} variant="outline">
+                Clear Filters
+              </Button>
+            </div>
+          </div>
+        ) : viewMode === "list" ? (
           <div className="space-y-6">
             {filteredNurseries.map((nursery) => (
               <NurseryCard
@@ -453,7 +586,7 @@ function NurseryCard({ nursery, onViewDetails, recommendedPlants, onAddToShoppin
           />
         ))}
         <span className="text-sm text-gray-600 ml-1">
-          {rating} ({nursery.reviewCount})
+          {rating} ({nursery.reviews?.length || 0})
         </span>
       </div>
     )
@@ -466,7 +599,7 @@ function NurseryCard({ nursery, onViewDetails, recommendedPlants, onAddToShoppin
           {/* Image */}
           <div className="w-48 h-32 flex-shrink-0 overflow-hidden rounded-lg">
             <Image
-              src={nursery.image || "/placeholder.svg"}
+              src={nursery.photos?.[0] || "/placeholder.svg"}
               alt={nursery.name}
               width={192}
               height={128}
@@ -480,18 +613,20 @@ function NurseryCard({ nursery, onViewDetails, recommendedPlants, onAddToShoppin
               <div>
                 <div className="flex items-center gap-2 mb-1">
                   <h3 className="text-xl font-bold text-powerplant-green">{nursery.name}</h3>
-                  {nursery.isPartner && (
+                  {nursery.rating > 4.5 && (
                     <Badge className="bg-energy-yellow text-powerplant-green">
                       <Award className="w-3 h-3 mr-1" />
-                      PowerPlant Partner
+                      Highly Rated
                     </Badge>
                   )}
                 </div>
                 {renderStars(nursery.rating)}
               </div>
               <div className="text-right">
-                <div className="text-lg font-semibold text-powerplant-green">{nursery.distance} mi</div>
-                <div className="text-sm text-gray-600">{nursery.priceRange}</div>
+                <div className="text-lg font-semibold text-powerplant-green">{nursery.distance?.toFixed(1)} mi</div>
+                <div className="text-sm text-gray-600">
+                  {nursery.priceLevel ? "$".repeat(nursery.priceLevel) : "$$"}
+                </div>
               </div>
             </div>
 
@@ -503,44 +638,48 @@ function NurseryCard({ nursery, onViewDetails, recommendedPlants, onAddToShoppin
               </div>
               <div className="flex items-center gap-1">
                 <Clock className="w-4 h-4" />
-                {nursery.isOpen ? (
+                {nursery.isOpenNow ? (
                   <span className="text-green-600 font-medium">Open Now</span>
                 ) : (
-                  <span className="text-red-600">Closed • Opens {nursery.nextOpenTime}</span>
+                  <span className="text-red-600">Closed</span>
                 )}
               </div>
             </div>
 
             {/* Specialties */}
             <div className="flex flex-wrap gap-2 mb-3">
-              {nursery.specialties.map((specialty, index) => (
+              {nursery.specialties?.map((specialty, index) => (
                 <Badge key={index} variant="outline" className="border-powerplant-green text-powerplant-green">
                   {specialty}
                 </Badge>
-              ))}
+              )) || <Badge variant="outline" className="border-powerplant-green text-powerplant-green">General Plants</Badge>}
             </div>
 
             {/* Recommended Plants Indicator */}
-            {nursery.hasRecommendedPlants && (
+            {nursery.specialties?.some(s => s.toLowerCase().includes('native') || s.toLowerCase().includes('organic')) && (
               <div className="flex items-center gap-2 mb-3 p-2 bg-gradient-to-r from-powerplant-green/10 to-energy-yellow/10 rounded-lg border border-powerplant-green/20">
                 <Zap className="w-4 h-4 text-energy-yellow" />
                 <span className="text-sm text-powerplant-green font-medium">
-                  PowerPlant Verified: Has {nursery.recommendedPlantsCount} of your power plants
+                  PowerPlant Verified: Specializes in sustainable plants
                 </span>
               </div>
             )}
 
-            {/* Promotions */}
-            {nursery.promotions.length > 0 && (
-              <div className="mb-3">
-                {nursery.promotions.map((promotion, index) => (
-                  <div key={index} className="flex items-center gap-2 text-sm text-energy-yellow font-medium">
-                    <Zap className="w-4 h-4" />
-                    <span>{promotion}</span>
-                  </div>
-                ))}
-              </div>
-            )}
+            {/* Contact Info */}
+            <div className="mb-3 flex gap-4 text-sm text-gray-600">
+              {nursery.phone && (
+                <div className="flex items-center gap-1">
+                  <Phone className="w-4 h-4" />
+                  <span>{nursery.phone}</span>
+                </div>
+              )}
+              {nursery.website && (
+                <div className="flex items-center gap-1">
+                  <Globe className="w-4 h-4" />
+                  <span>Website</span>
+                </div>
+              )}
+            </div>
 
             {/* Action Buttons */}
             <div className="flex gap-3">
