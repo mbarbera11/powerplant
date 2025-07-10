@@ -37,9 +37,9 @@ export default function PowerPlantLanding() {
   }
 
   const handleCategoryExplore = (categoryName: string) => {
-    // Store the preferred category and navigate to onboarding
+    // Store the preferred category and navigate to nurseries with pre-filter
     localStorage.setItem('preferredCategory', categoryName.toLowerCase())
-    router.push('/onboarding')
+    router.push(`/nurseries?category=${categoryName.toLowerCase()}`)
   }
 
   const plantCategories = [
@@ -234,18 +234,18 @@ export default function PowerPlantLanding() {
             {plantCategories.map((category, index) => (
               <Card
                 key={index}
-                className="group hover:shadow-xl transition-all duration-300 hover:-translate-y-2 border-0 bg-white"
+                className="group hover:shadow-xl transition-all duration-300 hover:-translate-y-2 border-0 bg-white h-full"
               >
-                <CardContent className="p-6">
+                <CardContent className="p-6 h-full flex flex-col">
                   <div
                     className={`w-16 h-16 bg-gradient-to-br ${category.gradient} rounded-full flex items-center justify-center mb-4 group-hover:scale-110 transition-transform duration-300`}
                   >
                     <category.icon className="w-8 h-8 text-white" />
                   </div>
-                  <h3 className="text-xl font-semibold text-powerplant-green mb-2 font-montserrat">{category.name}</h3>
-                  <p className="text-gray-600 mb-4 font-open-sans text-sm">{category.description}</p>
-                  <div className="mb-4">
-                    <div className="flex flex-wrap gap-1">
+                  <h3 className="text-xl font-semibold text-powerplant-green mb-3 font-montserrat">{category.name}</h3>
+                  <p className="text-gray-600 mb-4 font-open-sans text-sm flex-grow">{category.description}</p>
+                  <div className="mb-6">
+                    <div className="flex flex-wrap gap-1 min-h-[2.5rem]">
                       {category.samples.map((sample, idx) => (
                         <span key={idx} className="text-xs bg-gray-100 text-gray-700 px-2 py-1 rounded-full">
                           {sample}
@@ -256,7 +256,7 @@ export default function PowerPlantLanding() {
                   <Button
                     variant="outline"
                     onClick={() => handleCategoryExplore(category.name)}
-                    className="w-full border-powerplant-green text-powerplant-green hover:bg-powerplant-green hover:text-white transition-colors bg-transparent"
+                    className="w-full border-powerplant-green text-powerplant-green hover:bg-powerplant-green hover:text-white transition-colors bg-transparent mt-auto"
                   >
                     Explore {category.name}
                   </Button>

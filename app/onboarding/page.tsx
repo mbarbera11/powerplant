@@ -392,7 +392,7 @@ function LocationStep({
         {/* Manual Entry */}
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">
-            Enter your zip code or city
+            Zip code or city
           </label>
           <input
             type="text"
