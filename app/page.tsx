@@ -143,8 +143,8 @@ export default function PowerPlantLanding() {
 
             {/* Location Input CTA */}
             <div className="max-w-2xl mx-auto mb-8">
-              <div className="flex gap-2 p-2 bg-white rounded-full shadow-lg border-2 border-powerplant-green/20 hover:border-powerplant-green/40 transition-colors">
-                <div className="flex-1">
+              <div className="flex gap-3 p-3 bg-white rounded-full shadow-lg border-2 border-powerplant-green/20 hover:border-powerplant-green/40 transition-colors">
+                <div className="flex-1 min-w-0">
                   <AddressAutocomplete
                     value={location}
                     onChange={setLocation}
@@ -153,13 +153,13 @@ export default function PowerPlantLanding() {
                       handleGetStarted()
                     }}
                     placeholder="Enter your address or city"
-                    className="border-0 bg-transparent focus-visible:ring-0 text-lg pl-2"
+                    className="border-0 bg-transparent focus-visible:ring-0 text-lg pl-0"
                   />
                 </div>
                 <Button
                   size="lg"
                   onClick={handleGetStarted}
-                  className="bg-gradient-to-r from-powerplant-green to-energy-yellow hover:from-powerplant-green/90 hover:to-energy-yellow/90 text-white font-semibold rounded-full px-8 transform hover:scale-105 transition-all duration-200 shadow-lg hover:shadow-xl"
+                  className="bg-gradient-to-r from-powerplant-green to-energy-yellow hover:from-powerplant-green/90 hover:to-energy-yellow/90 text-white font-semibold rounded-full px-8 transform hover:scale-105 transition-all duration-200 shadow-lg hover:shadow-xl flex-shrink-0"
                 >
                   <Zap className="w-4 h-4 mr-2" />
                   Power Up My Garden

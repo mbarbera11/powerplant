@@ -119,33 +119,62 @@ export function AddressAutocomplete({
       }
     } catch (error) {
       console.error('Autocomplete error:', error)
-      // Fallback to enhanced mock data
-      const mockPredictions: PlacePrediction[] = [
-        {
-          place_id: 'mock_1',
-          description: `${input}, Austin, TX, USA`,
-          structured_formatting: {
-            main_text: `${input}, Austin`,
-            secondary_text: 'TX, USA'
+      // Fallback to context-aware mock data
+      const isNumeric = /^\d/.test(input)
+      const isAddress = input.includes(' ') || isNumeric
+      
+      let mockPredictions: PlacePrediction[] = []
+      
+      if (isAddress && isNumeric) {
+        // Address-like input
+        mockPredictions = [
+          {
+            place_id: 'fallback_addr_1',
+            description: `${input} Main Street, Austin, TX, USA`,
+            structured_formatting: {
+              main_text: `${input} Main Street`,
+              secondary_text: 'Austin, TX, USA'
+            }
+          },
+          {
+            place_id: 'fallback_addr_2',
+            description: `${input} Oak Avenue, Houston, TX, USA`,
+            structured_formatting: {
+              main_text: `${input} Oak Avenue`,
+              secondary_text: 'Houston, TX, USA'
+            }
           }
-        },
-        {
-          place_id: 'mock_2', 
-          description: `${input}, Houston, TX, USA`,
-          structured_formatting: {
-            main_text: `${input}, Houston`,
-            secondary_text: 'TX, USA'
+        ]
+      } else {
+        // City/area input
+        mockPredictions = [
+          {
+            place_id: 'fallback_city_1',
+            description: `${input}, Austin, TX, USA`,
+            structured_formatting: {
+              main_text: input,
+              secondary_text: 'Austin, TX, USA'
+            }
+          },
+          {
+            place_id: 'fallback_city_2',
+            description: `${input}, Houston, TX, USA`,
+            structured_formatting: {
+              main_text: input,
+              secondary_text: 'Houston, TX, USA'
+            }
+          },
+          {
+            place_id: 'fallback_city_3',
+            description: `${input}, Dallas, TX, USA`,
+            structured_formatting: {
+              main_text: input,
+              secondary_text: 'Dallas, TX, USA'
+            }
           }
-        },
-        {
-          place_id: 'mock_3',
-          description: `${input}, Dallas, TX, USA`,
-          structured_formatting: {
-            main_text: `${input}, Dallas`,
-            secondary_text: 'TX, USA'
-          }
-        }
-      ]
+        ]
+      }
+      
       setPredictions(mockPredictions)
       setIsOpen(true)
     } finally {
@@ -197,7 +226,7 @@ export function AddressAutocomplete({
   return (
     <div ref={containerRef} className="relative w-full">
       <div className="relative">
-        <MapPin className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+        <MapPin className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400 flex-shrink-0" />
         <Input
           ref={inputRef}
           type="text"
@@ -207,20 +236,20 @@ export function AddressAutocomplete({
           onFocus={() => value.length >= 3 && predictions.length > 0 && setIsOpen(true)}
           placeholder={placeholder}
           disabled={disabled}
-          className={`pl-10 pr-10 ${className}`}
+          className={`pl-10 ${value ? 'pr-10' : 'pr-4'} ${isLoading ? 'pr-10' : ''} ${className}`}
           autoComplete="off"
         />
-        {value && (
+        {value && !isLoading && (
           <button
             type="button"
             onClick={handleClear}
-            className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+            className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 z-10"
           >
             <X className="w-4 h-4" />
           </button>
         )}
         {isLoading && (
-          <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+          <div className="absolute right-3 top-1/2 transform -translate-y-1/2 z-10">
             <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-powerplant-green"></div>
           </div>
         )}

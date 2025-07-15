@@ -14,49 +14,77 @@ export async function POST(request: NextRequest) {
     const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY
     
     if (!apiKey || apiKey === 'demo_key') {
-      // Return mock data for development
-      const mockPredictions = [
-        {
-          place_id: 'mock_austin',
-          description: `${input}, Austin, TX, USA`,
-          structured_formatting: {
-            main_text: `${input}, Austin`,
-            secondary_text: 'TX, USA'
+      // Return realistic mock data for development
+      const isNumeric = /^\d/.test(input)
+      const isAddress = input.includes(' ') || isNumeric
+      
+      let mockPredictions = []
+      
+      if (isAddress && isNumeric) {
+        // Address-like input - suggest specific addresses
+        mockPredictions = [
+          {
+            place_id: 'mock_addr_1',
+            description: `${input} Main St, Austin, TX, USA`,
+            structured_formatting: {
+              main_text: `${input} Main St`,
+              secondary_text: 'Austin, TX, USA'
+            }
+          },
+          {
+            place_id: 'mock_addr_2',
+            description: `${input} Oak Ave, Houston, TX, USA`,
+            structured_formatting: {
+              main_text: `${input} Oak Ave`,
+              secondary_text: 'Houston, TX, USA'
+            }
+          },
+          {
+            place_id: 'mock_addr_3',
+            description: `${input} Elm St, Dallas, TX, USA`,
+            structured_formatting: {
+              main_text: `${input} Elm St`,
+              secondary_text: 'Dallas, TX, USA'
+            }
           }
-        },
-        {
-          place_id: 'mock_houston',
-          description: `${input}, Houston, TX, USA`, 
-          structured_formatting: {
-            main_text: `${input}, Houston`,
-            secondary_text: 'TX, USA'
+        ]
+      } else {
+        // City/area input - suggest cities and neighborhoods
+        mockPredictions = [
+          {
+            place_id: 'mock_city_1',
+            description: `${input}, Austin, TX, USA`,
+            structured_formatting: {
+              main_text: input,
+              secondary_text: 'Austin, TX, USA'
+            }
+          },
+          {
+            place_id: 'mock_city_2',
+            description: `${input}, Houston, TX, USA`,
+            structured_formatting: {
+              main_text: input,
+              secondary_text: 'Houston, TX, USA'
+            }
+          },
+          {
+            place_id: 'mock_city_3',
+            description: `${input}, Dallas, TX, USA`,
+            structured_formatting: {
+              main_text: input,
+              secondary_text: 'Dallas, TX, USA'
+            }
+          },
+          {
+            place_id: 'mock_city_4',
+            description: `${input}, San Antonio, TX, USA`,
+            structured_formatting: {
+              main_text: input,
+              secondary_text: 'San Antonio, TX, USA'
+            }
           }
-        },
-        {
-          place_id: 'mock_dallas',
-          description: `${input}, Dallas, TX, USA`,
-          structured_formatting: {
-            main_text: `${input}, Dallas`, 
-            secondary_text: 'TX, USA'
-          }
-        },
-        {
-          place_id: 'mock_san_antonio',
-          description: `${input}, San Antonio, TX, USA`,
-          structured_formatting: {
-            main_text: `${input}, San Antonio`,
-            secondary_text: 'TX, USA'
-          }
-        },
-        {
-          place_id: 'mock_fort_worth',
-          description: `${input}, Fort Worth, TX, USA`,
-          structured_formatting: {
-            main_text: `${input}, Fort Worth`,
-            secondary_text: 'TX, USA'
-          }
-        }
-      ]
+        ]
+      }
       
       return NextResponse.json({
         status: 'OK',
@@ -64,16 +92,20 @@ export async function POST(request: NextRequest) {
       })
     }
 
-    // Make request to Google Places API
-    const response = await fetch(
-      `https://maps.googleapis.com/maps/api/place/autocomplete/json?input=${encodeURIComponent(input)}&types=address&components=country:us&key=${apiKey}`,
-      {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      }
-    )
+    // Make request to Google Places API with better parameters
+    const url = new URL('https://maps.googleapis.com/maps/api/place/autocomplete/json')
+    url.searchParams.set('input', input)
+    url.searchParams.set('types', 'address')
+    url.searchParams.set('components', 'country:us')
+    url.searchParams.set('language', 'en')
+    url.searchParams.set('key', apiKey)
+    
+    const response = await fetch(url.toString(), {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    })
 
     if (!response.ok) {
       throw new Error(`Google API request failed: ${response.status}`)
